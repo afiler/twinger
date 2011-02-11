@@ -1,0 +1,120 @@
+#!/usr/bin/ruby1.9.1
+
+require 'json'
+require 'open-uri'
+require 'date'
+
+def fixdate(d, offset=0, from_fmt=nil, to_fmt='%b %d %H:%M')
+    d = from_fmt ? DateTime.strptime(d.to_s, from_fmt) : DateTime.parse(d.to_s)
+    (Time.gm(d.year, d.month, d.day, d.hour, d.minute, d.sec)+offset).strftime to_fmt
+end
+
+def cowsay(str)
+    print `/usr/games/cowsay #{str}`
+    return false
+end
+
+def render_html(str)
+    IO.popen('/usr/bin/w3m -config /dev/null -s -dump -T text/html 2>/dev/null', 'w+', :encoding => "UTF-8") { |subprocess| subprocess.write str; subprocess.close_write; subprocess.read }
+end
+
+def get_json(uri)
+    JSON.parse open(uri).readlines.join
+
+    rescue; {}
+end
+
+def twitter(username)
+    t = JSON.parse open("http://api.twitter.com/1/statuses/user_timeline/#{username}.json").readlines.join
+    user = t.first['user']
+    offset = user['utc_offset'].to_i
+
+    printf "Login: %-33s Name: %-33s\n", user['screen_name'], user['name']
+    printf "Bio: %-72s\n", user['description']
+    printf "Location: %-64s\n", user['location']
+    printf "Web: %-72s\n", user['url']
+
+    puts
+
+    t.each do |twit|
+        created_at = fixdate twit['created_at'], offset, '%a %b %d %H:%M:%S %Z %Y'
+        #text = twit['text'].scan(/./).each_slice(64).map { |x| " "*14+x.join+"\n" }.join
+        #text[0..12] = "#{created_at}: "
+        #print text
+        puts "#{created_at}: #{twit['text']}"
+    end
+end
+
+def rss(host)
+    require 'feed-normalizer'
+    require 'nokogiri'
+
+    doc = Nokogiri::HTML(open("http://#{host}"))
+    rss_url = (doc/"//link[@rel='alternate' and @type='application/rss+xml'][1]/@href").to_s
+    
+    return false if not rss_url or rss_url.empty?
+
+    feed = FeedNormalizer::FeedNormalizer.parse open(rss_url)
+
+    printf("Site: %-72s\n", feed.title) if feed.title
+    printf("URL: %-72s\n", feed.url) if feed.url
+    printf("Description: %-66s\n", feed.description) if feed.description
+    printf("Author: %-72s\n", feed.author) if feed.author
+    puts
+    feed.entries[0..4].each do |entry|
+        date = fixdate entry.last_updated #, 0, '%a, %d %b %Y %H:%M:%S %z'
+        content = Nokogiri::HTML entry.content
+        content.xpath('//div').each { |div| div.unlink }
+        content = render_html(content.to_s.strip).strip.split("\n")
+        printf "%-13s %s\n", date, content.first
+        content[1..-1].each { |line| printf "%-13s %s\n", '', line }
+        puts
+    end
+rescue
+    return false
+end
+
+def facebook(id)
+    profile_url = "http://graph.facebook.com/#{id}"
+    profile = get_json profile_url
+    feed = get_json profile_url + '/feed'
+    if not profile.empty?
+        login = (profile['link'] || '').sub "http://www.facebook.com/", ''
+        location = (profile['location'] || {})['name']
+        id = profile['id']
+
+        printf("Login: %-33s Name: %-33s\n", login, profile['name'])
+        printf("Location: %-64s\n", location) if location and not location.empty?
+        printf("Gender: %-72s\n", profile['gender']) if profile['gender']
+        puts
+    end
+    feed['data'].each do |item|
+        date = fixdate item['created_time'] #, 0, '%Y-%m-%dT%H:%M:%S%z'
+        from = item['from']['id'] == id ? '' : "[from #{item['from']['name']}] "
+        printf "%-13s %s%s\n", date, from, item['message']
+    end
+end
+
+def main
+    if ARGV[0] =~ /^([a-zA-Z0-9_\.-]+)@([a-zA-Z\-\.]+)$/
+        username = $1
+        host = $2
+        if host == 'twitter.com' then twitter(username)
+        elsif host == 'facebook.com' then facebook(username)
+        elsif host.empty? then cowsay('Please finger in this format: "finger username@twitter.com@finger.afiler.com"')
+        else
+            rss_found = rss("#{host}/#{username}")
+            if not rss_found
+                cowsay("FAIL! This gateway does not support #{host}. Try username@twitter.com@finger.afiler.com for twitter, for example.")
+            end
+        end
+    elsif ARGV[0] =~ /^([a-zA-Z\-\.\/]+)$/ then
+        rss_found = rss($1)
+        cowsay('Could not find an RSS feed at #{host}') if not rss_found
+    else cowsay 'FAIL! This gateway could not parse your request. Try username@twitter.com@finger.afiler.com for twitter, for example.'
+    end
+rescue
+    cowsay 'FAILCOW SAYS "FAIL"'
+end
+
+main

@@ -1,0 +1,16 @@
+Twinger is a finger gateway server that began with twitter support, but now also supports Facebook specifically and other sites generically.
+
+For twitter, finger “<twitteruser>@twitter.com@<twingerhost>”, for Facebook, finger “cdc@facebook.com@finger.afiler.com”. Twinger also supports sites that have per-user RSS feeds linked to from the page at sitename.com/username (e.g. finger afiler@flickr.com@finger.afiler.com), and it supports queries on sites that have RSS feeds linked from their main page (e.g. finger afiler.com@finger.afiler.com).
+
+$ finger fakeapstylebook@twitter.com@finger.afiler.com
+[finger.afiler.com]
+Login: FakeAPStylebook Name: Fake AP Stylebook
+Bio: Style tips for proper writing. contact: fakeapstylebook at gmail dot com. No submissions, please. All material copyright The Bureau Chiefs, LLC.
+Location:
+Web: http://www.thebureauchiefs.com
+Apr 22 16:00: For an international audience, spell the pop star's name as "KeUSDha."
+Apr 22 11:30: Do not reference The Oxford English Dictionary. We speak American.
+...
+Apr 16 07:00: It's "for all intents and purposes." "Intensive Purposes" is the hot new medical drama from CBS.
+Apr 15 16:00: Be sure not to confuse "aural" and "oral." The former is very uncomfortable.
+Apr 15 14:17: Bureau Chiefs Poll: Who would you choose to perform at your son?@Ys bar mitzvah? http://bit.ly/ds489i
